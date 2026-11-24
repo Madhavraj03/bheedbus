@@ -220,8 +220,8 @@ class Insights:
             for R in self.m.routes.values():
                 pts = points(R.name, R.stops)
                 for j, (s, p) in enumerate(zip(R.stops, pts)):
-                    if p["lat"] is None or s not in self.m.stop_place:
-                        continue
+                    if p["lat"] is None or p.get("approx") or s not in self.m.stop_place:
+                        continue  # a guessed spot between two known stops can be km off: never offer it as "nearby"
                     # trust a position only if a neighbouring stop on the route is close (wrong matches jump km away)
                     nb = [q for q in pts[max(0, j - 1):j + 2] if q is not p and q["lat"] is not None]
                     if any(km((p["lat"], p["lon"]), (q["lat"], q["lon"])) <= 1.6 for q in nb):
