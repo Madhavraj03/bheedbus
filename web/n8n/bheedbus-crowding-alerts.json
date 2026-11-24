@@ -1,0 +1,162 @@
+{
+  "name": "BheedBus – hourly crowding alerts",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Every hour, 6am–10pm",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6-22 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "2",
+      "name": "Get crowding alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "url": "={{ ($env.BHEEDBUS_URL || 'http://localhost:8000') + '/api/alerts' }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "3",
+      "name": "Any overloaded routes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4",
+      "name": "Send to depot Telegram group",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        680,
+        -80
+      ],
+      "parameters": {
+        "chatId": "={{ $env.BHEEDBUS_TELEGRAM_CHAT_ID }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "id": "5",
+      "name": "Post to Slack #operations",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        680,
+        80
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "#operations"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every hour, 6am–10pm": {
+      "main": [
+        [
+          {
+            "node": "Get crowding alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get crowding alerts": {
+      "main": [
+        [
+          {
+            "node": "Any overloaded routes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any overloaded routes?": {
+      "main": [
+        [
+          {
+            "node": "Send to depot Telegram group",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Post to Slack #operations",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

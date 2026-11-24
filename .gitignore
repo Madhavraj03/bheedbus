@@ -1,0 +1,16 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# local environment and caches
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.claude/
+build/
+
+# data: the October ticket dataset belongs to the hackathon and the built database is >100 MB.
+# Put October-Delhi.csv in data/raw/ and run pipeline/build.py to recreate everything here.
+data/

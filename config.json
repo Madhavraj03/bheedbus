@@ -1,0 +1,113 @@
+{
+  "ticket_csv": "data/raw/October-Delhi.csv",
+  "gtfs_zip": "data/gtfs/gtfs.zip",
+  "out_db": "data/out/crowding.db",
+  "holidays": [
+    "2026-10-02",
+    "2026-10-20"
+  ],
+  "expansion": {
+    "_doc": "Digital tickets are a sample of all riders (cash/ETM, passes and free pink tickets are missing). E = assumed total weekday boardings / observed weekday digital boardings.",
+    "assumed_weekday_boardings": 4000000,
+    "adoption_alpha": 0.75,
+    "_doc_alpha": "0 = same expansion on every route; 1 = assume every bus carries the same riders per day. 0.5 splits the difference.",
+    "capacity_anchor_quantile": 0.99,
+    "_doc_anchor": "Second anchor: the busiest well-sampled bus-hours (this quantile of load/crush) may not exceed crush load. The lower of the two anchors is used."
+  },
+  "fleet": {
+    "_doc": "Buses per route are estimated with the Chao1 estimator on vehicle-tagged tickets per day. GTFS frequencies replace this when a feed is supplied.",
+    "layover_min": 8,
+    "min_departures_per_hour": 0.5,
+    "max_departures_per_hour": 20,
+    "service_start_hour": 5,
+    "service_end_hour": 23
+  },
+  "travel_time": {
+    "default_min_per_stop": 2.0,
+    "min_pairs_for_route": 15,
+    "max_gap_min": 75
+  },
+  "bus_types": {
+    "_doc": "Default 12 m low-floor bus. Routes matching a pattern in nine_m_route_patterns use the 9 m bus.",
+    "12m": {
+      "seats": 40,
+      "standing_comfort": 30,
+      "crush": 100
+    },
+    "9m": {
+      "seats": 24,
+      "standing_comfort": 16,
+      "crush": 55
+    },
+    "nine_m_route_patterns": []
+  },
+  "levels": [
+    {
+      "key": "seats",
+      "label": "Seats available",
+      "color": "#0ca30c",
+      "perceived_multiplier": 1.0,
+      "icon": "💺"
+    },
+    {
+      "key": "standing",
+      "label": "Standing room",
+      "color": "#fab219",
+      "perceived_multiplier": 1.35,
+      "icon": "🧍"
+    },
+    {
+      "key": "crowded",
+      "label": "Crowded",
+      "color": "#ec835a",
+      "perceived_multiplier": 1.75,
+      "icon": "👥"
+    },
+    {
+      "key": "packed",
+      "label": "Packed",
+      "color": "#d03b3b",
+      "perceived_multiplier": 2.2,
+      "icon": "🚫"
+    }
+  ],
+  "confidence": {
+    "high_min_tickets": 60,
+    "medium_min_tickets": 15,
+    "high_max_cv": 0.35
+  },
+  "seat_probability": {
+    "_doc": "P(seat) = P(bus load < seats). Bus load is lognormal with the cell's mean, and CV combining day-to-day variation (from data) and bus-to-bus variation within an hour (bunching).",
+    "bus_to_bus_cv": 0.35,
+    "shrink_tickets": 30
+  },
+  "ml": {
+    "enabled": true,
+    "_doc": "Gradient-boosted smoothing for sparse stretch-hours, blended n/(n+k) with the raw estimate; kept only if it beats the raw estimate on the held-out week 4."
+  },
+  "events": {
+    "_doc": "Unusual-day detector. Each day vs the median of the same weekday on other normal days. known_events is used ONLY to label and score what the detector found, never to find it. Check the calendar labels before presenting.",
+    "min_z": 3.0,
+    "min_change": 0.12,
+    "stop_min_expected": 3,
+    "stop_min_ratio": 2.5,
+    "stop_min_z": 6.0,
+    "stop_max_days": 4,
+    "known_events": {
+      "2026-10-02": "Gandhi Jayanti (public holiday)",
+      "2026-10-18": "Navratri: Durga Ashtami (Sunday)",
+      "2026-10-19": "Navratri: Maha Navami",
+      "2026-10-20": "Dussehra (public holiday)"
+    },
+    "notable_z": 2.5,
+    "notable_change": 0.15
+  },
+  "bunching": {
+    "_doc": "Pair-correlation of bus arrivals at the same stop: pairs 0-3 min apart vs 10-40 min apart. 0 = even spacing, 1 = random, >1 = buses in packs.",
+    "max_lag": 30,
+    "shrink_pairs": 20
+  },
+  "feedback": {
+    "_doc": "Rider reports via WhatsApp/web are stored in data/feedback.db and compared with the model."
+  }
+}

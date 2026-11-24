@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BheedBus</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚌</text></svg>">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="/static/styles.css?v=14">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#trip"><span class="logo">🚌</span><b>BheedBus</b></a>
+  <nav id="tabs" aria-label="Sections">
+    <button data-tab="trip" class="on">Trip</button>
+    <button data-tab="routes">Routes</button>
+    <button data-tab="city">City</button>
+    <button data-tab="ops">Operators</button>
+    <button data-tab="about">Data</button>
+  </nav>
+  <button id="sharebtn" class="ghost share-btn" type="button">📱 Share</button>
+  <button id="theme" class="icon-btn" title="Light / dark" aria-label="Toggle dark mode">◐</button>
+</header>
+
+<main>
+<!-- ============================ TRIP ============================ -->
+<section id="trip" class="tab on">
+  <div class="hero">
+    <h1>How full is your bus?</h1>
+    <p>Pick the trip you can bear: faster, or with a seat.</p>
+  </div>
+
+  <form id="planform" class="search">
+    <div class="ends">
+      <div class="combo"><span class="dot o"></span><input id="from" value="Anand Vihar" placeholder="From" aria-label="From" autocomplete="off" role="combobox" aria-expanded="false"></div>
+      <button type="button" id="swap" class="icon-btn swap" title="Swap" aria-label="Swap from and to">⇅</button>
+      <div class="combo"><span class="dot d"></span><input id="to" value="Connaught Place" placeholder="To" aria-label="To" autocomplete="off" role="combobox" aria-expanded="false"></div>
+    </div>
+    <div class="opts">
+      <label class="pill-input">🕒 <input id="time" type="time" value="18:00" aria-label="Leave at"></label>
+      <div class="seg" id="day"><button type="button" data-v="weekday" class="on">Weekday</button><button type="button" data-v="weekend">Weekend</button></div>
+      <div class="seg" id="pref"><button type="button" data-v="0">⚡ Fastest</button><button type="button" data-v="0.5" class="on">⚖️ Balanced</button><button type="button" data-v="1">💺 Get a seat</button></div>
+      <button class="primary">Find buses</button>
+    </div>
+  </form>
+
+  <div id="results" class="results"></div>
+  <p class="foot muted">Typical crowding from 2.56 million October 2026 tickets, not live. <span id="legend" class="legend-inline"></span></p>
+</section>
+
+<!-- ============================ ROUTES ============================ -->
+<section id="routes" class="tab">
+  <div class="bar">
+    <div class="combo grow"><input id="rq" value="717AUP" placeholder="Search a route: 433, 717A…" aria-label="Route" autocomplete="off" role="combobox" aria-expanded="false"></div>
+    <div class="seg" id="rday"><button type="button" data-v="weekday" class="on">Weekday</button><button type="button" data-v="weekend">Weekend</button></div>
+    <label class="hour">At <output id="rhourout">09:00</output><input id="rhour" type="range" min="5" max="23" value="9" aria-label="Hour"></label>
+  </div>
+  <div id="rchips" class="chips"><span class="muted">Busiest:</span></div>
+  <div id="rhead" class="rhead"></div>
+
+  <div class="mapwrap">
+    <div id="map" class="map" role="region" aria-label="Route map"></div>
+    <aside class="stops">
+      <div class="stops-h"><b>Stops</b><span id="mapstat" class="muted"></span></div>
+      <div id="line" class="line"></div>
+    </aside>
+  </div>
+  <div class="legend" id="maplegend"></div>
+
+  <details class="more">
+    <summary>Hour-by-hour pattern for every stretch</summary>
+    <p class="muted">Rows are stretches from the first stop (top) to the last. Faded cells rest on few tickets. Click a cell to jump to that hour.</p>
+    <div id="heat" class="heat"></div>
+  </details>
+</section>
+
+<!-- ============================ CITY ============================ -->
+<section id="city" class="tab">
+  <div class="card">
+    <div class="card-h">
+      <div><h2>Delhi, hour by hour</h2>
+        <p class="muted">Every bus stretch we could place on the map, coloured by how full buses usually are. Thicker = more riders. Press play.</p></div>
+      <div class="row">
+        <div class="seg" id="cday"><button type="button" data-v="weekday" class="on">Weekday</button><button type="button" data-v="weekend">Weekend</button></div>
+        <button id="cplay" class="primary" type="button">▶ Play</button>
+      </div>
+    </div>
+    <div class="citywrap">
+      <div id="citymap" class="map citymap" role="region" aria-label="City crowding map"></div>
+      <div class="cityclock"><b id="cclock" class="tnum">08:00</b><span id="ccap" class="muted">Loading the city…</span></div>
+    </div>
+    <label class="hour wide">Hour <input id="chour" type="range" min="5" max="23" value="8" aria-label="Hour of day"></label>
+    <div class="legend" id="citylegend"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">
+      <div><h2>The data found Delhi's festivals on its own</h2>
+        <p class="muted">Each day is compared with the same weekday on other normal days of October. No holiday calendar goes in; we only check afterwards what it found. Tap a bar.</p></div>
+      <div id="evcheck" class="evcheck"></div>
+    </div>
+    <div id="evchart" class="chart"></div>
+    <div id="evday" class="evday"></div>
+    <h3>Sudden crowds at places</h3>
+    <p class="muted">Stops where boardings jumped far above their usual level for that weekday (at least 2.5× and well beyond chance). Tap one to see it on the map above.</p>
+    <div id="evplaces" class="evplaces"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">
+      <div><h2>Buses travel in packs</h2>
+        <p class="muted">When two buses of the same route issue tickets at the same stop within 3 minutes, they arrived together. We compare how often that happens with pure chance.
+          <b>0</b> = evenly spaced, <b>1</b> = as if at random, <b>above 1</b> = in packs. One bus packed, the next one empty: that's bunching.</p></div>
+      <div id="bnkpi" class="evcheck"></div>
+    </div>
+    <div class="cols">
+      <div><h3>Bunching through the day</h3><div id="bnchart" class="chart"></div></div>
+      <div><h3>Routes that bunch most in the peaks</h3>
+        <div class="tablewrap"><table id="bntable"><thead><tr><th>Route</th><th>From → to</th><th class="num">Buses/h</th><th class="num">Bunching</th></tr></thead><tbody></tbody></table></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">
+      <div><h2>What if some riders left a little later?</h2>
+        <p class="muted">A free fix next to adding buses: shift a share of peak riders by a few minutes and see crowding change across the whole city.</p></div>
+    </div>
+    <div class="nudge">
+      <label>Riders who shift <output id="nshareout">10%</output><input id="nshare" type="range" min="0" max="40" step="5" value="10"></label>
+      <label>By <output id="nminout">+20 min</output><input id="nmin" type="range" min="-30" max="40" step="10" value="20"></label>
+      <label class="muted small"><input id="neve" type="checkbox" checked> Evening peak too (17–20)</label>
+    </div>
+    <div id="nkpi" class="kpis"></div>
+    <h3>Crowded passenger-hours by hour of day</h3>
+    <div id="nchart" class="chart"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">
+      <div><h2>Riders check the model</h2>
+        <p class="muted">After a trip, WhatsApp asks “how full was it?” (and trip cards here have the same buttons). Every answer is stored next to what the model predicted.</p></div>
+    </div>
+    <div id="fbbox"></div>
+  </div>
+</section>
+
+<!-- ============================ OPERATORS ============================ -->
+<section id="ops" class="tab">
+  <div id="kpis" class="kpis"></div>
+
+  <div class="card">
+    <div class="card-h">
+      <h2>Where extra buses would help most</h2>
+      <div class="row">
+        <div class="seg" id="oday"><button type="button" data-v="weekday" class="on">Weekday</button><button type="button" data-v="weekend">Weekend</button></div>
+        <select id="ohour" aria-label="Hour"><option value="">Worst hour</option></select>
+        <button id="csv" class="ghost" type="button">Export CSV</button>
+      </div>
+    </div>
+    <div class="tablewrap"><table id="hot"><thead><tr><th>Route</th><th>Hour</th><th>Busiest stretch</th><th class="num">On board</th><th>Crowding</th><th class="num">Add buses/h</th></tr></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="card" id="rebal">
+    <div class="card-h">
+      <div><h2>Rebalance the fleet</h2>
+        <p class="muted">Drag a 🚌 from the left onto a crowded route on the right (or tap one, then the other). Total buses stay the same.</p></div>
+      <div class="row">
+        <select id="rbwin" aria-label="Time window">
+          <option value="8-10">Morning peak 08–10</option><option value="17-20">Evening peak 17–20</option><option value="11-16">Midday 11–16</option>
+        </select>
+        <button id="rbopt" class="primary" type="button">✨ Auto-optimise</button>
+        <button id="rbreset" class="ghost" type="button">Reset</button>
+      </div>
+    </div>
+    <div id="rbkpi" class="rbk"></div>
+    <div class="cols">
+      <div><h3>Spare seats</h3><div id="rbdonors" class="rblist"></div></div>
+      <div><h3>Crowded</h3><div id="rbrecv" class="rblist"></div></div>
+    </div>
+    <div id="rbmoves" class="rbmoves"></div>
+  </div>
+
+  <details class="more">
+    <summary>Model checks and assumptions</summary>
+    <div class="cols">
+      <div><h3>Boardings per hour</h3><div id="chart-hourly" class="chart"></div></div>
+      <div><h3>Share of bus-hours that are crowded</h3><div id="chart-crowded" class="chart"></div></div>
+    </div>
+    <div id="valid" class="valid"></div>
+    <h3>Machine learning for quiet routes</h3>
+    <p class="muted">On stretches with few tickets, a gradient-boosting model learned from busy routes fills the gaps. Busy stretches keep their own data. Scored on weeks it never saw: lower error is better.</p>
+    <div class="tablewrap"><table id="mltable"><thead><tr><th>Stretch-hours</th><th class="num">Cells</th><th class="num">Error before</th><th class="num">Error with ML</th><th class="num">Better by</th></tr></thead><tbody></tbody></table></div>
+    <h3>What if true ridership differs?</h3>
+    <div class="slider"><span>×0.5</span><input id="scale" type="range" min="0.5" max="2" step="0.1" value="1" aria-label="Ridership scale"><span>×2</span><output id="scaleout">×1.0</output></div>
+  </details>
+</section>
+
+<!-- ============================ DATA ============================ -->
+<section id="about" class="tab">
+  <div class="card wa-card">
+    <div class="card-h"><div><h2>WhatsApp bot</h2>
+      <p class="muted">Commuters text or send a <b>voice note</b> in English, Hinglish or Hindi; BheedBus replies on WhatsApp, with a voice note too. Try it right here without a phone:</p></div>
+      <span id="wastat" class="muted"></span></div>
+    <div class="phone">
+      <div class="phone-top"><span>🚌</span><div><b>BheedBus</b><small>WhatsApp bot</small></div></div>
+      <div id="wamsgs" class="wa-msgs"><div class="wa b">Send <b>hi</b> for the menu, type a question like <i>“Anand Vihar se CP shaam 6 baje, seat chahiye”</i>, or tap 🎙️ to record a voice note (tap again to send).</div></div>
+      <form id="waform" class="wa-in">
+        <input id="watext" placeholder="Message" autocomplete="off" aria-label="WhatsApp message">
+        <button id="warec" class="wa-rec" type="button" title="Click to record a voice note, click again to send" aria-label="Record voice note">🎙️</button>
+      </form>
+    </div>
+  </div>
+  <div class="cols">
+    <div class="card">
+      <h2>Rebuild with new data</h2>
+      <div id="drop" class="drop" tabindex="0">
+        <div class="big">⤓</div><b>Drop a file here</b>
+        <span class="muted">A ticket CSV (or .zip) for a new month, or a GTFS .zip</span>
+        <input id="file" type="file" accept=".csv,.zip" hidden>
+        <button class="ghost" type="button" id="pick">Choose file</button>
+      </div>
+      <pre id="joblog" class="log" hidden></pre>
+    </div>
+    <div class="card">
+      <h2>Model</h2><div id="modelinfo" class="kv"></div>
+      <h2>Connect</h2>
+      <ul class="links">
+        <li><a href="/docs" target="_blank">API docs</a></li>
+        <li><a href="/static/n8n/bheedbus-ai-agent.json" download>n8n: AI agent workflow</a></li>
+        <li><a href="/static/n8n/bheedbus-crowding-alerts.json" download>n8n: hourly crowding alerts</a></li>
+        <li><a href="/static/n8n/bheedbus-chatbot.json" download>n8n: Telegram bot</a></li>
+      </ul>
+    </div>
+  </div>
+  <details class="more"><summary>Technical note: method, assumptions, limits</summary><div id="note" class="note"></div></details>
+</section>
+</main>
+
+<!-- ============================ AI CHAT ============================ -->
+<button id="chatfab" class="fab" aria-label="Ask BheedBus AI"><span>✨</span> Ask AI</button>
+<aside id="chat" class="chat" aria-label="Ask BheedBus" hidden>
+  <div class="chat-h">
+    <div><b>Ask BheedBus</b><span id="engine" class="muted"></span></div>
+    <button id="chatclose" class="icon-btn" aria-label="Close">✕</button>
+  </div>
+  <div id="msgs" class="msgs">
+    <div class="msg bot">Namaste! Ask in English or Hinglish, e.g.
+      <div class="sugg">
+        <button>Anand Vihar to Connaught Place at 6 pm, I want a seat</button>
+        <button>Badarpur se Saket subah 9 baje</button>
+        <button>How crowded is 433DOWN at 9 am?</button>
+        <button>Where should we add buses?</button>
+      </div>
+    </div>
+  </div>
+  <div class="chat-tools">
+    <div class="seg small" id="lang"><button type="button" data-v="en-IN" class="on">EN</button><button type="button" data-v="hinglish">Hinglish</button><button type="button" data-v="hi-IN">हिन्दी</button></div>
+    <label class="muted small"><input type="checkbox" id="speak"> Read aloud</label>
+    <button id="stopspeak" class="ghost small" type="button" hidden>⏹ Stop</button>
+  </div>
+  <form id="chatform" class="chat-in">
+    <button id="mic" class="mic" type="button" title="Dictate" aria-label="Dictate">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="2.5" width="7" height="12.5" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 18v3.5M8.5 21.5h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+    <input id="askq" placeholder="Ask anything about Delhi buses…" autocomplete="off" aria-label="Your question">
+    <button class="send primary" aria-label="Send">↑</button>
+  </form>
+</aside>
+
+<div id="sharemodal" class="modal" hidden>
+  <div class="modal-box" role="dialog" aria-labelledby="share-h">
+    <div class="row between"><h2 id="share-h">Share BheedBus</h2><button class="icon-btn" id="shareclose" aria-label="Close">✕</button></div>
+    <div class="qrs">
+      <div class="qrc"><img id="qrsite" alt="QR code for the website"><b>Open the website</b><span id="siteurl" class="muted"></span></div>
+      <div class="qrc" id="qrwabox"><img id="qrwa" alt="QR code for WhatsApp"><b>Chat on WhatsApp</b><span class="muted">Text or voice notes</span></div>
+      <div class="qrc" id="qrtgbox" hidden><img id="qrtg" alt="QR code for Telegram"><b>Chat on Telegram</b><span class="muted">Text, voice notes or your location</span></div>
+    </div>
+    <p id="sharenote" class="muted"></p>
+    <a class="primary" href="/poster" target="_blank" style="text-decoration:none;display:inline-block">🖨️ Printable bus-stop poster</a>
+  </div>
+</div>
+<div id="tip" class="tip" hidden></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="/static/app.js?v=16"></script>
+</body>
+</html>

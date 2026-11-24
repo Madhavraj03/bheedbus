@@ -1,0 +1,301 @@
+{
+  "name": "BheedBus – AI assistant (local Ollama + BheedBus tools)",
+  "nodes": [
+    {
+      "id": "note",
+      "name": "Read me",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -220
+      ],
+      "parameters": {
+        "width": 620,
+        "height": 180,
+        "content": "## BheedBus AI assistant\n1. Start BheedBus (port 8000) and Ollama (`ollama pull qwen2.5:7b`).\n2. Add an **Ollama** credential (base URL `http://localhost:11434`; in Docker use `http://host.docker.internal:11434`).\n3. If n8n runs in Docker or the cloud, change `http://localhost:8000` in the 4 tool nodes to where BheedBus is reachable.\n4. Click **Open chat** and ask: *Anand Vihar se CP shaam 6 baje, seat chahiye*."
+      }
+    },
+    {
+      "id": "c1",
+      "name": "Chat with commuter",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "public": false,
+        "options": {
+          "title": "BheedBus",
+          "subtitle": "How full is your bus?",
+          "initialMessages": "Namaste! Ask me e.g. \"Anand Vihar to Connaught Place at 6 pm, I want a seat\"."
+        }
+      }
+    },
+    {
+      "id": "a1",
+      "name": "BheedBus agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        300,
+        0
+      ],
+      "parameters": {
+        "options": {
+          "systemMessage": "You are BheedBus, a Delhi bus assistant. Crowding estimates come from October 2026 ticket data, typical not live. For trip questions call plan_journey; for one route's crowding call route_crowding; for where buses are overloaded call operator_hotspots; use search_places when a stop name is unclear. Never invent routes or numbers. Answer in 2-4 short lines with minutes, bus numbers, crowding and seat chance. Reply in the user's language (Hinglish if they write Hinglish). Times are 24h; '6 baje shaam' is 18:00.",
+          "maxIterations": 6
+        }
+      }
+    },
+    {
+      "id": "m1",
+      "name": "Local AI (Ollama qwen2.5:7b)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        120,
+        260
+      ],
+      "parameters": {
+        "model": "qwen2.5:7b",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "credentials": {
+        "ollamaApi": {
+          "id": "",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "id": "mem",
+      "name": "Remember the conversation",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        280,
+        260
+      ],
+      "parameters": {
+        "contextWindowLength": 6
+      }
+    },
+    {
+      "id": "t1",
+      "name": "plan_journey",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        260
+      ],
+      "parameters": {
+        "toolDescription": "Plan Delhi bus trips with travel time, crowding per stretch and chance of a seat. from/to are stop or area names in English. time HH:MM 24h. day weekday or weekend. comfort 0 fastest to 1 most comfortable.",
+        "method": "GET",
+        "url": "http://localhost:8000/api/plan?from={from}&to={to}&time={time}&day={day}&comfort={comfort}",
+        "optimizeResponse": true,
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "from",
+              "description": "start place name",
+              "type": "string"
+            },
+            {
+              "name": "to",
+              "description": "destination place name",
+              "type": "string"
+            },
+            {
+              "name": "time",
+              "description": "departure time HH:MM 24h",
+              "type": "string"
+            },
+            {
+              "name": "day",
+              "description": "weekday or weekend",
+              "type": "string"
+            },
+            {
+              "name": "comfort",
+              "description": "0 = fastest, 1 = most comfortable",
+              "type": "number"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "t2",
+      "name": "route_crowding",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        600,
+        260
+      ],
+      "parameters": {
+        "toolDescription": "Crowding on every stretch of one bus route-direction (e.g. 717AUP) at one hour.",
+        "method": "GET",
+        "url": "http://localhost:8000/api/crowding?route={route}&hour={hour}&day={day}",
+        "optimizeResponse": true,
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "route",
+              "description": "route-direction like 717AUP or 433DOWN",
+              "type": "string"
+            },
+            {
+              "name": "hour",
+              "description": "hour 0-23",
+              "type": "number"
+            },
+            {
+              "name": "day",
+              "description": "weekday or weekend",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "t3",
+      "name": "operator_hotspots",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        760,
+        260
+      ],
+      "parameters": {
+        "toolDescription": "Most overloaded routes and stretches, and how many extra buses per hour would fix them.",
+        "method": "GET",
+        "url": "http://localhost:8000/api/operator/hotspots?day={day}&limit=8",
+        "optimizeResponse": true,
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "day",
+              "description": "weekday or weekend",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "t4",
+      "name": "search_places",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        920,
+        260
+      ],
+      "parameters": {
+        "toolDescription": "Find bus stop places matching a name; use when a name is unclear.",
+        "method": "GET",
+        "url": "http://localhost:8000/api/places?q={query}",
+        "optimizeResponse": true,
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "place name to look up",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Chat with commuter": {
+      "main": [
+        [
+          {
+            "node": "BheedBus agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Local AI (Ollama qwen2.5:7b)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "BheedBus agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remember the conversation": {
+      "ai_memory": [
+        [
+          {
+            "node": "BheedBus agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "plan_journey": {
+      "ai_tool": [
+        [
+          {
+            "node": "BheedBus agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "route_crowding": {
+      "ai_tool": [
+        [
+          {
+            "node": "BheedBus agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "operator_hotspots": {
+      "ai_tool": [
+        [
+          {
+            "node": "BheedBus agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "search_places": {
+      "ai_tool": [
+        [
+          {
+            "node": "BheedBus agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

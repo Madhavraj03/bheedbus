@@ -1,0 +1,93 @@
+{
+  "name": "BheedBus – Telegram trip planner bot",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Message from commuter",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "id": "2",
+      "name": "Ask BheedBus",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.BHEEDBUS_URL || 'http://localhost:8000') + '/api/webhook/chat' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: $json.message.text, user: String($json.message.from.id) }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "3",
+      "name": "Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "chatId": "={{ $('Message from commuter').item.json.message.chat.id }}",
+        "text": "={{ $json.reply }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Message from commuter": {
+      "main": [
+        [
+          {
+            "node": "Ask BheedBus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask BheedBus": {
+      "main": [
+        [
+          {
+            "node": "Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
